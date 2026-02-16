@@ -5,10 +5,10 @@
 | Field | Value |
 |-------|-------|
 | **Document Name** | OpenCode Virtual Agile Agents Team - HLD |
-| **Version** | 1.0 |
+| **Version** | 2.0 |
 | **Date** | 2026-02-16 |
 | **Author** | System Architect |
-| **Status** | Draft |
+| **Status** | Updated |
 
 ---
 
@@ -35,6 +35,8 @@ The OpenCode Virtual Agile Agents Team is an AI-powered multi-agent system that 
 - Backlog and sprint management
 - Velocity tracking and metrics
 - Automated reporting to stakeholders
+- Pull request workflow with AI and human approvals
+- Real-time monitoring via SignalR
 
 **Out of Scope:**
 - Manual human intervention in agent tasks
@@ -55,19 +57,29 @@ The OpenCode Virtual Agile Agents Team is an AI-powered multi-agent system that 
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                         DASHBOARD UI (Web App)                           │
-│                    (Next.js + TypeScript + Tailwind)                     │
+│                    WEBAPP UI (ASP.NET MVC)                           │
+│                    (Metronic 8 + Bootstrap 5)                          │
+│                    Clean Architecture - Presentation Layer             │
 └─────────────────────────────┬───────────────────────────────────────────┘
-                              │ REST API / WebSocket
+                              │ HTTP (REST API)
                               ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                      ORCHESTRATION LAYER                                 │
+│                      API SERVICE (ASP.NET 8.0)                          │
+│                    Clean Architecture - 3 Layers                         │
+│                                                                         │
 │  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │              OpenCode Orchestrator Agent (Meta-Agent)             │   │
-│  │  - Agent Registration & Discovery                                │   │
-│  │  - Message Routing & Coordination                                │   │
-│  │  - Workflow Execution Management                                  │   │
-│  │  - Error Handling & Retry Logic                                  │   │
+│  │              Presentation Layer                                │   │
+│  │  (Controllers, Minimal APIs, SignalR Hubs, DTOs)              │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                              ↓ depends on                              │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │              Domain Layer                                       │   │
+│  │  (Repository Interfaces, Domain Services, Business Logic)      │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                              ↓ depends on                              │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │              Data Layer                                         │   │
+│  │  (DbContext, Entity Models, Repository Implementations)       │   │
 │  └─────────────────────────────────────────────────────────────────┘   │
 └──────┬────────────────────────┬────────────────────────┬────────────────┘
        │                        │                        │
@@ -115,28 +127,146 @@ The OpenCode Virtual Agile Agents Team is an AI-powered multi-agent system that 
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    INFRASTRUCTURE LAYER                                  │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                   │
-│  │  Docker      │  │  Nginx       │  │ Monitoring   │                   │
-│  │  Containers  │  │  Reverse     │  │ (Prometheus  │                   │
-│  │              │  │  Proxy       │  │  + Grafana)  │                   │
-│  └──────────────┘  └──────────────┘  └──────────────┘                   │
+│                    ORCHESTRATOR SERVICE (ASP.NET)                       │
+│              (Background Worker - Workflow Execution)                   │
+└─────────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    MONITORING & VISUALIZATION                            │
+│  ┌──────────────┐  ┌──────────────┐                                      │
+│  │  Prometheus  │  │   Grafana    │                                      │
+│  │  Port:9090   │  │  Port:3001   │                                      │
+│  └──────────────┘  └──────────────┘                                      │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 Key Architectural Principles
+### 2.2 Clean Architecture Pattern
 
-1. **Agent-Centric Design**: OpenCode agents are first-class citizens in the architecture
+**Layer Dependencies (Dependency Rule)**:
+
+```
+┌─────────────────────────────────────────────────┐
+│         Presentation Layer                   │
+│  (Controllers, Hubs, DTOs, ViewModels)      │
+└──────────────┬────────────────────────────┘
+               │ depends on
+               ▼
+┌─────────────────────────────────────────────────┐
+│           Domain Layer                         │
+│  (Repository Interfaces, Domain Services)      │
+└──────────────┬────────────────────────────┘
+               │ depends on
+               ▼
+┌─────────────────────────────────────────────────┐
+│            Data Layer                         │
+│  (DbContext, Entities, Repositories)        │
+└─────────────────────────────────────────────┘
+```
+
+**Key Principles**:
+- **Dependency Inversion**: High-level modules don't depend on low-level modules
+- **Single Responsibility**: Each layer has a single, well-defined purpose
+- **Interface Segregation**: Clients depend only on interfaces they use
+- **Separation of Concerns**: Clear separation between layers
+
+### 2.3 Key Architectural Principles
+
+1. **Agent-Centric Design**: OpenCode agents are first-class citizens in architecture
 2. **Loose Coupling**: Components communicate through well-defined interfaces
 3. **Event-Driven**: Agents react to events and messages asynchronously
 4. **Scalability**: Horizontal scaling of agents and services
 5. **Observability**: Full visibility into agent interactions and decisions
+6. **Clean Architecture**: Layered architecture following SOLID principles
 
 ---
 
 ## 3. System Components
 
-### 3.1 OpenCode Orchestrator (Meta-Agent)
+### 3.1 API Service (VirtualAgents.Api)
+
+**Purpose**: Backend API service handling all business logic and agent orchestration
+
+**Architecture**: Clean Architecture with 3 layers (Presentation, Domain, Data)
+
+**Technology Stack**:
+- ASP.NET Core 8.0
+- C# 12
+- Entity Framework Core 8.0
+- SignalR 8.0
+- Minimal APIs
+
+**Key Responsibilities**:
+- RESTful API endpoints for agents, projects, workflows, reports
+- SignalR Hub for real-time agent communication
+- Workflow execution orchestration
+- OpenCode integration service
+- GitHub integration for PR management
+- Slack integration for notifications
+
+**Key API Endpoints**:
+- `/api/agents` - Agent CRUD operations
+- `/api/workflows` - Workflow management and execution
+- `/api/projects` - Project and sprint management
+- `/api/reports` - Daily standup, sprint, and velocity reports
+
+**For detailed implementation including code examples, database schemas, and API specifications, see [LLD.md](LLD.md)**
+
+### 3.2 WebApp UI (VirtualAgents.WebApp)
+
+**Purpose**: Frontend web application for user interaction and monitoring
+
+**Architecture**: Clean Architecture with 3 layers (Presentation, Domain, Data)
+
+**Technology Stack**:
+- ASP.NET Core 8.0 (MVC)
+- C# 12
+- Metronic 8 (Bootstrap-based admin theme)
+- Bootstrap 5.x
+- SignalR Client
+- jQuery 3.x
+
+**Key Features**:
+- Agent status monitoring dashboard
+- Project and sprint management UI
+- Workflow execution monitoring
+- Real-time updates via SignalR
+- Report generation and viewing
+- Metronic 8 professional theme
+
+**Key Pages**:
+- Agents - List and view agent details
+- Projects - Manage projects and sprints
+- Workflows - Execute and monitor workflows
+- Reports - View daily standup, sprint, and velocity reports
+- Home - Dashboard overview
+
+**For detailed implementation including layout structure, view components, and JavaScript, see [LLD.md](LLD.md)**
+
+### 3.3 Orchestrator Service (VirtualAgents.Orchestrator)
+
+**Purpose**: Background worker service for workflow execution and agent coordination
+
+**Technology Stack**:
+- ASP.NET Core 8.0 (BackgroundService)
+- C# 12
+- Entity Framework Core 8.0
+
+**Key Components**:
+- **OrchestratorWorker**: Main orchestrator loop for workflow scheduling
+- **WorkflowExecutorWorker**: Workflow execution handler
+- **HeartbeatWorker**: Agent health check and monitoring
+- **ReportSchedulerWorker**: Scheduled report generation
+
+**Workflow Execution**:
+- Schedule-based workflow execution (cron expressions)
+- Event-driven workflow triggers
+- Retry logic with exponential backoff
+- Error handling and recovery
+
+**For detailed implementation including worker code and service logic, see [LLD.md](LLD.md)**
+
+### 3.4 OpenCode Orchestrator (Meta-Agent)
 
 **Purpose**: Central hub that coordinates all agents and manages system lifecycle
 
@@ -152,435 +282,97 @@ The OpenCode Virtual Agile Agents Team is an AI-powered multi-agent system that 
 - Workflow orchestration capabilities
 - Message routing logic
 
-**Key Interfaces**:
-```typescript
-interface OrchestratorAgent {
-  registerAgent(agentId: string, agentConfig: AgentConfig): Promise<void>;
-  routeMessage(message: AgentMessage): Promise<AgentResponse>;
-  executeWorkflow(workflowId: string, params: any): Promise<WorkflowResult>;
-  monitorAgents(): Promise<AgentStatus[]>;
-}
-```
+**For detailed implementation including agent interfaces and workflow definitions, see [LLD.md](LLD.md)**
 
-### 3.2 Role-Based Agents
+### 3.5 Role-Based Agents
 
-#### 3.2.1 PM Agent
+**Agent Models**:
+- PM Agent (GPT-4o): Sprint planning, backlog management, daily standup facilitation
+- Architect Agent (GPT-4o): System architecture design, tech stack recommendations
+- Tech Lead Agent (GPT-4o): Technical decisions, AI code review
+- Developer Agents (GPT-4o/GPT-4o-Mini): Feature implementation, bug fixing
+- QA Agent (GPT-4o): Test planning, test case generation, quality tracking
 
-**Model**: GPT-4o
+**For detailed agent definitions, system prompts, and key functions, see [LLD.md](LLD.md)**
 
-**Responsibilities**:
-- Sprint planning and backlog management
-- Daily standup facilitation
-- Progress tracking and reporting
-- Stakeholder communication
-- Risk identification and mitigation
+### 3.6 Communication Layer
 
-**Key Functions**:
-- `generateSprintPlan(backlog: BacklogItem[]): SprintPlan`
-- `facilitateDailyStandup(): StandupReport`
-- `generateProgressReport(sprintId: string): ProgressReport`
-- `identifyRisks(project: Project): Risk[]`
+**Protocol**: SignalR + OpenCode Native Messaging
 
-**System Prompt Template**:
-```
-You are an experienced Project Manager with expertise in Agile/Scrum methodologies.
-You coordinate software development teams, manage backlogs, track progress, and communicate with stakeholders.
-You are proactive, organized, and focused on delivering value while maintaining team velocity.
-```
-
-#### 3.2.2 Architect Agent
-
-**Model**: GPT-4o
-
-**Responsibilities**:
-- System architecture design
-- Technology stack recommendations
-- Architecture pattern selection
-- Design document creation
-- Technical feasibility analysis
-
-**Key Functions**:
-- `designArchitecture(requirements: Requirements): Architecture`
-- `recommendTechStack(requirements: Requirements): TechStack`
-- `reviewArchitecture(architecture: Architecture): ReviewResult`
-- `createDesignDocs(architecture: Architecture): Document[]`
-
-**Knowledge Base**:
-- Architecture patterns (Microservices, Event-Driven, Clean Architecture)
-- Best practices and SOLID principles
-- Technology reference guides
-
-#### 3.2.3 Tech Lead Agent
-
-**Model**: GPT-4o
-
-**Responsibilities**:
-- Technical decision-making
-- Code review and quality assurance
-- Technical guidance for developers
-- CI/CD pipeline configuration
-- Technical debt management
-
-**Key Functions**:
-- `reviewPullRequest(pr: PullRequest): ReviewFeedback`
-- `approveTechnicalDecision(decision: TechDecision): Approval`
-- `setupCI_CD(repo: Repository): PipelineConfig`
-- `manageTechnicalDebt(debt: TechnicalDebt[]): DebtManagementPlan`
-
-#### 3.2.4 Developer Agents
-
-**Model**: GPT-4o (senior), GPT-4o Mini (junior)
-
-**Responsibilities**:
-- Feature implementation
-- Bug fixing and debugging
-- Code writing and testing
-- Documentation creation
-- Peer code review
-
-**Key Functions**:
-- `implementFeature(feature: Feature): Implementation`
-- `fixBug(bugReport: BugReport): FixResult`
-- `writeTests(code: Code): TestSuite`
-- `generateDocumentation(code: Code): Documentation`
-
-**Specializations**:
-- Dev-1: Frontend (React/Next.js, TypeScript, Tailwind CSS)
-- Dev-2: Backend (Node.js/Python, API design, Database)
-- Dev-3: DevOps/Infrastructure (Docker, CI/CD, Cloud)
-
-#### 3.2.5 QA Agent
-
-**Model**: GPT-4o
-
-**Responsibilities**:
-- Test planning and strategy
-- Test case generation
-- Automated test execution
-- Bug identification and reporting
-- Quality metrics tracking
-
-**Key Functions**:
-- `createTestPlan(feature: Feature): TestPlan`
-- `generateTestCases(requirements: Requirements): TestCase[]`
-- `executeTests(testPlan: TestPlan): TestResults`
-- `generateQualityReport(metrics: QualityMetrics): QualityReport`
-
-### 3.3 Communication Layer
-
-**Protocol**: OpenCode Native Messaging
-
-**Message Format**:
-```typescript
-interface AgentMessage {
-  id: string;                    // UUID
-  from: string;                  // Agent ID (sender)
-  to: string | string[];         // Agent ID(s) (recipient)
-  type: 'command' | 'request' | 'response' | 'event' | 'notification';
-  intent: string;                // Intent identifier
-  payload: any;                  // Message content
-  timestamp: string;             // ISO 8601
-  priority?: 'low' | 'normal' | 'high' | 'urgent';
-  conversationId?: string;       // For multi-turn conversations
-  replyTo?: string;              // Message ID to reply to
-}
-```
+**Technology**:
+- SignalR 8.0 for real-time WebSocket connections
+- OpenCode API for agent-to-agent communication
+- Redis for message queuing and buffering
 
 **Communication Patterns**:
-
-1. **Direct Messaging**
-   - One-to-one communication between agents
-   - Example: Dev-1 → Tech Lead for code review
-
-2. **Broadcast**
-   - One-to-many communication
-   - Example: Orchestrator → All agents for system announcements
-
-3. **Pub/Sub**
-   - Topic-based subscription
-   - Example: Subscribe to 'sprint-updates' topic
-
-4. **Request-Response**
-   - Synchronous-like async communication
-   - Example: PM → Architect → Response with architecture design
+1. **Direct Messaging**: One-to-one communication between agents
+2. **Broadcast**: One-to-many communication from orchestrator to all agents
+3. **Request-Response**: Asynchronous request-response pattern
+4. **Pub/Sub**: Topic-based message distribution
 
 **Error Handling**:
 - Automatic retry with exponential backoff
 - Dead letter queue for failed messages
 - Circuit breaker pattern for agent unavailability
 
-### 3.4 Workflow Engine
+**For detailed implementation including SignalR Hub, message formats, and client code, see [LLD.md](LLD.md)**
 
-**Technology**: OpenCode Workflow Orchestration
+### 3.7 Workflow Engine
 
-**Workflow Definition DSL**:
-```typescript
-interface Workflow {
-  id: string;
-  name: string;
-  version: string;
-  description: string;
-  triggers: Trigger[];
-  stages: WorkflowStage[];
-  errorHandler: ErrorHandler;
-}
-
-interface WorkflowStage {
-  name: string;
-  agents: string[];
-  tasks: WorkflowTask[];
-  conditions?: Condition[];
-  onStageComplete?: string; // Next stage or end
-}
-
-interface WorkflowTask {
-  id: string;
-  agent: string;
-  action: string;
-  input: any;
-  output?: string; // Store output for next tasks
-  dependencies?: string[]; // Task IDs to complete first
-  timeout?: number; // milliseconds
-  retryPolicy?: RetryPolicy;
-}
-```
+**Technology**: OpenCode Workflow Orchestration + BackgroundService
 
 **Predefined Workflows**:
+1. **Daily Standup Workflow**: Automated daily standup meeting with all agents
+2. **Sprint Planning Workflow**: Sprint backlog creation and task assignments
+3. **Sprint Execution Workflow**: Ongoing sprint execution and monitoring
+4. **Sprint Review Workflow**: End-of-sprint summary and velocity report
+5. **Sprint Retrospective Workflow**: Sprint retrospective and improvement planning
 
-1. **Daily Standup Workflow**
-   - Trigger: Every weekday at 8:00 AM
-   - Duration: 30 minutes
-   - Participants: All agents
-   - Output: Standup report sent to stakeholder
+**For detailed workflow definitions, stage configurations, and task definitions, see [LLD.md](LLD.md)**
 
-2. **Sprint Planning Workflow**
-   - Trigger: Start of sprint
-   - Duration: 2 hours
-   - Participants: PM, Architect, Tech Lead
-   - Output: Sprint backlog, task assignments
+### 3.8 Pull Request Workflow (2-Approval Process)
 
-3. **Sprint Execution Workflow**
-   - Trigger: Start of sprint
-   - Duration: Sprint length (2 weeks)
-   - Participants: All agents
-   - Output: Completed features, updated backlog
+**Purpose**: Ensure code quality through AI and human review
 
-4. **Sprint Review Workflow**
-   - Trigger: End of sprint
-   - Duration: 1 hour
-   - Participants: PM, Tech Lead, QA
-   - Output: Sprint summary, velocity report
+**Workflow Steps**:
+1. Developer Agent creates Pull Request
+2. Tech Lead Agent performs AI Code Review
+3. Developer Agent addresses AI review comments
+4. Pull Request assigned to Human Reviewer
+5. Human Reviewer reviews PR manually
+6. If approved by both → Merge to main branch
+7. CI/CD pipeline triggers
+8. QA Agent performs post-merge validation
 
-5. **Sprint Retrospective Workflow**
-   - Trigger: End of sprint
-   - Duration: 1 hour
-   - Participants: All agents
-   - Output: Improvement plan, action items
+**GitHub Integration**:
+- Pull request creation and management
+- AI review feedback generation
+- Branch protection rules (2 approvals required)
+- CI/CD status checks
 
-### 3.5 Data Layer
+**For detailed implementation including GitHub service, branch protection rules, and review feedback formats, see [LLD.md](LLD.md)**
 
-#### 3.5.1 PostgreSQL Database
+### 3.9 Real-Time Communication (SignalR)
 
-**Schema Overview**:
-```sql
--- Agents
-CREATE TABLE agents (
-  id VARCHAR(50) PRIMARY KEY,
-  name VARCHAR(100) NOT NULL,
-  role VARCHAR(50) NOT NULL,
-  model VARCHAR(50) NOT NULL,
-  config JSONB,
-  status VARCHAR(20) NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
+**Purpose**: Provide real-time updates for agent status, workflow execution, and system events
 
--- Projects
-CREATE TABLE projects (
-  id VARCHAR(50) PRIMARY KEY,
-  name VARCHAR(200) NOT NULL,
-  description TEXT,
-  status VARCHAR(20) NOT NULL,
-  tech_stack JSONB,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
+**Real-Time Update Scenarios**:
+1. **Agent Status Updates**: Agent goes online/offline, status changes
+2. **Workflow Execution Progress**: Workflow started/completed, stage updates
+3. **Message Exchange**: New agent messages, conversation log
+4. **Pull Request Updates**: PR created, review submitted, PR merged
 
--- Backlog Items
-CREATE TABLE backlog_items (
-  id VARCHAR(50) PRIMARY KEY,
-  project_id VARCHAR(50) REFERENCES projects(id),
-  title VARCHAR(200) NOT NULL,
-  description TEXT,
-  type VARCHAR(20) NOT NULL, -- 'feature', 'bug', 'enhancement'
-  priority VARCHAR(20) NOT NULL,
-  story_points INTEGER,
-  status VARCHAR(20) NOT NULL,
-  sprint_id VARCHAR(50),
-  assigned_agent VARCHAR(50) REFERENCES agents(id),
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
+**For detailed implementation including SignalR Hub methods, client JavaScript, and update handlers, see [LLD.md](LLD.md)**
 
--- Sprints
-CREATE TABLE sprints (
-  id VARCHAR(50) PRIMARY KEY,
-  project_id VARCHAR(50) REFERENCES projects(id),
-  name VARCHAR(100) NOT NULL,
-  start_date DATE NOT NULL,
-  end_date DATE NOT NULL,
-  status VARCHAR(20) NOT NULL,
-  planned_velocity INTEGER,
-  actual_velocity INTEGER,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
+### 3.10 Data Layer
 
--- Agent Messages
-CREATE TABLE agent_messages (
-  id VARCHAR(50) PRIMARY KEY,
-  from_agent VARCHAR(50) REFERENCES agents(id),
-  to_agent VARCHAR(50) REFERENCES agents(id),
-  message_type VARCHAR(20) NOT NULL,
-  intent VARCHAR(100) NOT NULL,
-  payload JSONB NOT NULL,
-  timestamp TIMESTAMP NOT NULL,
-  status VARCHAR(20) NOT NULL
-);
+**Components**:
+- **PostgreSQL Database**: Persistent data storage (agents, projects, sprints, messages, etc.)
+- **Redis Cache**: Session management, caching, message queuing
+- **GitHub Integration**: Version control and PR management
+- **Slack Integration**: Notifications and reporting
 
--- Workflow Executions
-CREATE TABLE workflow_executions (
-  id VARCHAR(50) PRIMARY KEY,
-  workflow_id VARCHAR(50) NOT NULL,
-  status VARCHAR(20) NOT NULL,
-  started_at TIMESTAMP NOT NULL,
-  completed_at TIMESTAMP,
-  input JSONB,
-  output JSONB,
-  error_message TEXT
-);
-
--- Velocity Metrics
-CREATE TABLE velocity_metrics (
-  id SERIAL PRIMARY KEY,
-  sprint_id VARCHAR(50) REFERENCES sprints(id),
-  metric_type VARCHAR(50) NOT NULL,
-  value NUMERIC NOT NULL,
-  measured_at TIMESTAMP DEFAULT NOW()
-);
-```
-
-#### 3.5.2 Redis Cache
-
-**Use Cases**:
-- Session management for Dashboard UI
-- Caching agent responses
-- Temporary workflow state storage
-- Message queue buffering
-
-**Key Data Structures**:
-```
-# Agent status cache
-agent:{agent_id}:status -> "active" | "idle" | "busy" | "offline"
-
-# Workflow state
-workflow:{execution_id}:state -> JSON
-
-# Message queue
-queue:agent:{agent_id}:messages -> LIST
-
-# Rate limiting
-ratelimit:agent:{agent_id} -> INTEGER (count)
-```
-
-#### 3.5.3 GitHub Integration
-
-**Purpose**: Version control and code collaboration
-
-**Integration Points**:
-- Repository management
-- Pull request creation and review
-- Issue tracking
-- Project boards for backlog visualization
-- Actions for CI/CD
-
-**API Usage**:
-```typescript
-interface GitHubService {
-  createRepository(repoConfig: RepoConfig): Promise<Repository>;
-  createPullRequest(pr: PullRequest): Promise<number>;
-  reviewPullRequest(prNumber: number, review: Review): Promise<void>;
-  createIssue(issue: Issue): Promise<number>;
-  updateProjectBoard(projectId: string, updates: BoardUpdate): Promise<void>;
-}
-```
-
-#### 3.5.4 Slack Integration
-
-**Purpose**: Notification and reporting
-
-**Integration Points**:
-- Daily standup reports
-- Sprint summaries
-- Critical alerts and blockers
-- Agent status updates
-
-**API Usage**:
-```typescript
-interface SlackService {
-  sendMessage(channel: string, message: SlackMessage): Promise<void>;
-  uploadFile(channel: string, file: FileUpload): Promise<void>;
-  createBotMessage(channel: string, text: string): Promise<void>;
-}
-```
-
-### 3.6 Dashboard UI
-
-**Technology Stack**:
-- **Frontend**: Next.js 14 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS + shadcn/ui
-- **State Management**: Zustand
-- **Data Fetching**: React Query (TanStack Query)
-- **Real-time**: Socket.io
-- **Charts**: Recharts
-
-**Key Views**:
-
-1. **Dashboard Overview**
-   - Team velocity chart
-   - Sprint burndown chart
-   - Active agents status
-   - Recent activities feed
-
-2. **Backlog Management**
-   - List of backlog items
-   - Drag-and-drop to sprints
-   - Task assignments to agents
-   - Priority management
-
-3. **Sprint Board**
-   - Kanban-style board
-   - Columns: Backlog, In Progress, Testing, Done
-   - Agent work distribution
-
-4. **Agent Monitor**
-   - Real-time agent status
-   - Agent conversation history
-   - Performance metrics
-   - Error logs
-
-5. **Workflow Execution**
-   - Active workflows list
-   - Workflow execution logs
-   - Stage progress tracking
-   - Error handling
-
-6. **Reports**
-   - Daily standup reports
-   - Sprint summaries
-   - Velocity metrics
-   - Quality reports
+**For detailed database schemas, entity models, and configurations, see [LLD.md](LLD.md)**
 
 ---
 
@@ -588,98 +380,57 @@ interface SlackService {
 
 ### 4.1 Daily Standup Flow
 
-```
 1. Orchestrator triggers daily_standup workflow (8:00 AM)
-   ↓
 2. PM Agent sends "daily_update" request to all agents
-   ↓
-3. Each agent responds with:
-   - Completed tasks
-   - Planned tasks
-   - Blockers
-   ↓
+3. Each agent responds with completed tasks, planned tasks, blockers
 4. PM Agent aggregates responses
-   ↓
 5. PM Agent generates standup report
-   ↓
 6. Report sent to stakeholder via Slack/Email
-   ↓
 7. Report stored in PostgreSQL for historical tracking
-```
+8. SignalR broadcasts real-time updates to WebApp
 
 ### 4.2 Sprint Planning Flow
 
-```
 1. Orchestrator starts sprint_planning workflow
-   ↓
 2. PM Agent collects backlog items
-   ↓
 3. Architect Agent reviews backlog and provides technical insights
-   ↓
 4. Tech Lead Agent estimates story points and assigns to developers
-   ↓
 5. PM Agent finalizes sprint backlog
-   ↓
 6. Tasks assigned to Developer agents
-   ↓
 7. Sprint created in database
-   ↓
-8. Notification sent to all agents
-```
+8. Notification sent to all agents via SignalR
 
 ### 4.3 Feature Development Flow
 
-```
 1. Developer Agent receives task assignment
-   ↓
 2. Developer Agent analyzes requirements
-   ↓
 3. Developer Agent creates feature branch in GitHub
-   ↓
 4. Developer Agent implements feature
-   ↓
 5. Developer Agent writes unit tests
-   ↓
 6. Developer Agent creates pull request
-   ↓
-7. Tech Lead Agent reviews PR
-   ↓
-8. If approved → Merge
-   If rejected → Developer Agent fixes and resubmits
-   ↓
-9. QA Agent creates test cases
-   ↓
-10. QA Agent executes tests
-   ↓
-11. If tests pass → Task marked as done
-   If tests fail → Developer Agent fixes bugs
-   ↓
-12. Velocity metrics updated
-```
+7. Tech Lead Agent performs AI code review
+8. Developer Agent addresses AI review comments
+9. Pull Request assigned to Human Reviewer
+10. Human Reviewer reviews PR manually
+11. If approved by both → Merge to main branch
+12. CI/CD pipeline triggers
+13. QA Agent creates test cases
+14. QA Agent executes tests
+15. If tests pass → Task marked as done
+16. Velocity metrics updated
+17. SignalR broadcasts updates to WebApp
 
 ### 4.4 Sprint Review Flow
 
-```
 1. Orchestrator triggers sprint_review workflow
-   ↓
 2. PM Agent collects sprint metrics
-   ↓
 3. Tech Lead Agent summarizes technical achievements
-   ↓
 4. QA Agent provides quality report
-   ↓
 5. PM Agent generates sprint summary
-   ↓
-6. Summary includes:
-   - Completed features
-   - Velocity comparison
-   - Quality metrics
-   - Blockers and issues
-   ↓
-7. Report sent to stakeholder
-   ↓
+6. Summary includes: completed features, velocity comparison, quality metrics, blockers
+7. Report sent to stakeholder via Slack
 8. Sprint marked as completed
-```
+9. SignalR updates WebApp dashboard
 
 ---
 
@@ -698,29 +449,31 @@ interface SlackService {
 
 | Component | Technology | Version | Purpose |
 |-----------|-----------|---------|---------|
-| API Framework | Next.js API Routes | 14 | RESTful API |
-| Database ORM | Prisma | 5.x | PostgreSQL integration |
-| Caching | Redis | 7.x | Session and response caching |
-| Real-time | Socket.io | 4.x | WebSocket connections |
+| API Framework | ASP.NET Core | 8.0 | RESTful API + Background Services |
+| Language | C# | 12 | Backend logic |
+| ORM | Entity Framework Core | 8.0 | PostgreSQL integration |
+| Real-time | SignalR | 8.0 | WebSocket connections |
+| Minimal APIs | ASP.NET Core | 8.0 | API endpoints |
+| Dependency Injection | ASP.NET Core | 8.0 | IoC container |
 
 ### 5.3 Frontend
 
 | Component | Technology | Version | Purpose |
 |-----------|-----------|---------|---------|
-| Framework | Next.js | 14 | React framework |
-| Language | TypeScript | 5.x | Type safety |
-| Styling | Tailwind CSS | 3.x | Utility-first CSS |
-| UI Components | shadcn/ui | Latest | Reusable components |
-| State Management | Zustand | 4.x | Global state |
-| Data Fetching | TanStack Query | 5.x | Server state |
-| Charts | Recharts | 2.x | Data visualization |
+| Framework | ASP.NET Core MVC | 8.0 | Web UI framework |
+| Language | C# | 12 | Razor views and controllers |
+| Theme | Metronic 8 | Latest | Bootstrap-based admin theme |
+| CSS Framework | Bootstrap | 5.x | Responsive design |
+| JavaScript | jQuery | 3.x | DOM manipulation |
+| Real-time Client | SignalR Client | 8.0 | Real-time updates |
+| Charts | Chart.js | 4.x | Data visualization |
 
 ### 5.4 Database
 
 | Component | Technology | Version | Purpose |
 |-----------|-----------|---------|---------|
 | Primary Database | PostgreSQL | 15.x | Persistent data storage |
-| Vector Database | Pinecone | Latest | RAG and embeddings (optional) |
+| Cache | Redis | 7.x | Session and response caching |
 
 ### 5.5 DevOps & Infrastructure
 
@@ -728,18 +481,16 @@ interface SlackService {
 |-----------|-----------|---------|---------|
 | Containerization | Docker | 24.x | Application containers |
 | Orchestration | Docker Compose | 2.x | Local development |
-| Reverse Proxy | Nginx | 1.25.x | Load balancing |
 | Monitoring | Prometheus | 2.x | Metrics collection |
 | Visualization | Grafana | 10.x | Dashboard monitoring |
-| Version Control | GitHub | - | Code repository |
+| Version Control | GitHub | - | Code repository & PR management |
 
 ### 5.6 External Integrations
 
 | Component | Technology | Purpose |
 |-----------|-----------|---------|
-| GitHub API | Version control & collaboration |
-| Slack API | Notifications & reporting |
-| Email Service | Daily reports (SendGrid/SES) |
+| GitHub API | Version control, PR management, code review workflow |
+| Slack API | Notifications, reports, alerts |
 
 ---
 
@@ -748,127 +499,55 @@ interface SlackService {
 ### 6.1 Deployment Diagram
 
 ```
-┌─────────────────────────────────────────────────────────────┐
+┌─────────────────────────────────────────────────────┐
 │                    CLOUD INFRASTRUCTURE                     │
-│  ┌─────────────────────────────────────────────────────┐  │
+│  ┌─────────────────────────────────────────────┐  │
 │  │                  Load Balancer (Nginx)                │  │
-│  └──────────────────┬──────────────────────────────────┘  │
+│  └──────────────────┬──────────────────────────┘  │
 └─────────────────────┼──────────────────────────────────────┘
                       │
                       ▼
-┌─────────────────────────────────────────────────────────────┐
+┌─────────────────────────────────────────────────────┐
 │                    APPLICATION LAYER                         │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │  Dashboard   │  │   API        │  │  Orchestrator │     │
-│  │  (Next.js)   │  │  Service     │  │  Service      │     │
+│  │  WebApp UI   │  │   API        │  │  Orchestrator │     │
+│  │  (MVC)       │  │  Service     │  │  Service      │     │
 │  │  Port: 3000  │  │  Port: 8000  │  │  Port: 9000   │     │
+│  │  Metronic 8  │  │  SignalR Hub │  │  Background   │     │
 │  └──────────────┘  └──────────────┘  └──────────────┘     │
 └─────────────────────┬───────────────────────────────────────┘
                       │
                       ▼
-┌─────────────────────────────────────────────────────────────┐
+┌─────────────────────────────────────────────────────┐
 │                      DATA LAYER                              │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
 │  │ PostgreSQL   │  │    Redis     │  │   GitHub     │     │
 │  │   Port:5432  │  │   Port:6379  │  │   (Cloud)   │     │
 │  └──────────────┘  └──────────────┘  └──────────────┘     │
-└─────────────────────────────────────────────────────────────┘
+└─────────────────────────────────────────────────────┘
                       │
                       ▼
-┌─────────────────────────────────────────────────────────────┐
+┌─────────────────────────────────────────────────────┐
 │                  MONITORING LAYER                            │
 │  ┌──────────────┐  ┌──────────────┐                         │
 │  │  Prometheus  │  │   Grafana    │                         │
 │  │  Port:9090   │  │  Port:3001   │                         │
 │  └──────────────┘  └──────────────┘                         │
-└─────────────────────────────────────────────────────────────┘
+└─────────────────────────────────────────────────────┘
 ```
 
 ### 6.2 Containerization Strategy
 
 **Docker Compose Structure**:
-```yaml
-services:
-  # Dashboard UI
-  dashboard:
-    build: ./dashboard
-    ports: ["3000:3000"]
-    environment:
-      - API_URL=http://api:8000
-      - NEXT_PUBLIC_WS_URL=ws://orchestrator:9000
-    
-  # API Service
-  api:
-    build: ./api
-    ports: ["8000:8000"]
-    environment:
-      - DATABASE_URL=postgresql://...
-      - REDIS_URL=redis://redis:6379
-      - OPENCODE_API_KEY=${OPENCODE_API_KEY}
-    depends_on:
-      - postgres
-      - redis
-    
-  # Orchestrator Service
-  orchestrator:
-    build: ./orchestrator
-    ports: ["9000:9000"]
-    environment:
-      - OPENCODE_API_KEY=${OPENCODE_API_KEY}
-      - DATABASE_URL=postgresql://...
-      - REDIS_URL=redis://redis:6379
-    depends_on:
-      - postgres
-      - redis
-      - api
-    
-  # PostgreSQL Database
-  postgres:
-    image: postgres:15
-    ports: ["5432:5432"]
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_USER=admin
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=virtual_agents
-    
-  # Redis Cache
-  redis:
-    image: redis:7-alpine
-    ports: ["6379:6379"]
-    volumes:
-      - redis_data:/data
-    
-  # Nginx Reverse Proxy
-  nginx:
-    image: nginx:1.25-alpine
-    ports: ["80:80", "443:443"]
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-    depends_on:
-      - dashboard
-      - api
-      
-  # Prometheus Monitoring
-  prometheus:
-    image: prom/prometheus:latest
-    ports: ["9090:9090"]
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-      
-  # Grafana Dashboard
-  grafana:
-    image: grafana/grafana:latest
-    ports: ["3001:3000"]
-    volumes:
-      - grafana_data:/var/lib/grafana
+- **API Service**: Backend API with Clean Architecture
+- **WebApp Service**: Frontend MVC UI with Metronic 8
+- **Orchestrator Service**: Background worker for workflows
+- **PostgreSQL Database**: Persistent data storage
+- **Redis Cache**: Session and response caching
+- **Grafana Monitoring**: Dashboard monitoring
+- **Prometheus Metrics**: Metrics collection
 
-volumes:
-  postgres_data:
-  redis_data:
-  grafana_data:
-```
+**For detailed Docker Compose configuration and environment variables, see [DEPLOYMENT.md](DEPLOYMENT.md)**
 
 ### 6.3 Deployment Options
 
@@ -882,12 +561,7 @@ volumes:
 - Scalable infrastructure
 - High availability
 
-**Recommended AWS Architecture**:
-- **EC2** or **ECS** for application containers
-- **RDS** for PostgreSQL (managed database)
-- **ElastiCache** for Redis (managed cache)
-- **Elastic Load Balancer** for traffic distribution
-- **CloudWatch** for monitoring and logging
+**For detailed deployment instructions and cloud architecture recommendations, see [DEPLOYMENT.md](DEPLOYMENT.md)**
 
 ---
 
@@ -895,10 +569,10 @@ volumes:
 
 ### 7.1 Authentication & Authorization
 
-**Dashboard Access**:
-- JWT-based authentication
+**WebApp Access**:
+- Cookie-based authentication
 - Role-based access control (RBAC)
-- Multi-factor authentication (MFA) support
+- Session management with Redis
 
 **API Security**:
 - API key authentication for external integrations
@@ -932,8 +606,8 @@ volumes:
 ### 7.4 Input Validation & Sanitization
 
 **API Inputs**:
-- Schema validation (Zod)
-- SQL injection prevention (ORM parameterization)
+- Model validation (Data Annotations)
+- SQL injection prevention (EF Core parameterization)
 - XSS prevention (input sanitization)
 
 **Agent Prompts**:
@@ -975,7 +649,7 @@ volumes:
 **Caching Strategy**:
 - Agent response caching (Redis)
 - Database query caching
-- API response caching (CDN)
+- API response caching
 
 **Database Optimization**:
 - Connection pooling
@@ -994,7 +668,7 @@ volumes:
 
 | Component | CPU | Memory | Storage |
 |-----------|-----|--------|---------|
-| Dashboard | 1 vCPU | 2 GB | 10 GB |
+| WebApp UI | 1 vCPU | 2 GB | 10 GB |
 | API Service | 2 vCPU | 4 GB | 20 GB |
 | Orchestrator | 2 vCPU | 4 GB | 20 GB |
 | PostgreSQL | 4 vCPU | 16 GB | 100 GB |
@@ -1058,19 +732,6 @@ volumes:
 - **INFO**: Normal operations, workflow progress
 - **DEBUG**: Detailed debugging information
 
-**Log Structure**:
-```json
-{
-  "timestamp": "2024-01-01T12:00:00Z",
-  "level": "INFO",
-  "service": "orchestrator",
-  "agent_id": "pm-agent",
-  "message": "Daily standup completed",
-  "correlation_id": "uuid",
-  "metadata": {}
-}
-```
-
 ### 9.3 Alerting Strategy
 
 **Critical Alerts** (Immediate notification):
@@ -1086,36 +747,18 @@ volumes:
 - Approaching resource limits
 
 **Notification Channels**:
-- Slack/Teams integration
+- Slack integration
 - Email alerts
-- PagerDuty (for critical alerts)
+- SignalR real-time notifications
 
 ### 9.4 Dashboards
 
 **Grafana Dashboards**:
 
-1. **System Overview**
-   - CPU, memory, disk usage
-   - Network traffic
-   - Service health status
-
-2. **Agent Performance**
-   - Agent status (active/idle/busy)
-   - Response times
-   - Success rates
-   - API costs
-
-3. **Workflow Monitoring**
-   - Active workflows
-   - Execution times
-   - Success/failure rates
-   - Error breakdown
-
-4. **Agile Metrics**
-   - Velocity chart
-   - Sprint burndown
-   - Task completion rate
-   - Quality metrics
+1. **System Overview**: CPU, memory, disk usage, service health status
+2. **Agent Performance**: Agent status, response times, success rates, API costs
+3. **Workflow Monitoring**: Active workflows, execution times, success/failure rates
+4. **Agile Metrics**: Velocity chart, sprint burndown, task completion rate, quality metrics
 
 ---
 
@@ -1124,15 +767,17 @@ volumes:
 ### 10.1 Phase 1: MVP (4-6 weeks)
 
 **Objectives**:
-- Basic multi-agent setup
+- Basic multi-agent setup with ASP.NET stack
 - Simple daily standup workflow
-- Basic dashboard for monitoring
+- Basic WebApp UI with Metronic 8
 
 **Deliverables**:
-- OpenCode Orchestrator implementation
+- ASP.NET API project setup with Clean Architecture
+- OpenCode integration service
 - 3 agents: PM, 1 Dev, QA
 - Daily standup workflow
-- Basic Dashboard UI
+- ASP.NET WebApp with Metronic 8 theme
+- Basic SignalR integration
 - PostgreSQL database setup
 - GitHub integration for code management
 
@@ -1141,14 +786,14 @@ volumes:
 **Objectives**:
 - Complete role-based agent team
 - Sprint planning workflow
-- Advanced reporting
+- Advanced reporting with real-time updates
 
 **Deliverables**:
 - Architect and Tech Lead agents
 - 2-3 Developer agents
 - Sprint planning workflow
 - Sprint execution workflow
-- Advanced dashboard with metrics
+- Advanced WebApp dashboard with real-time SignalR updates
 - Velocity tracking
 - Slack integration for reports
 
@@ -1156,12 +801,14 @@ volumes:
 
 **Objectives**:
 - Full Agile workflow automation
+- Pull request workflow with 2 approvals
 - Performance optimization
-- Enhanced monitoring
 
 **Deliverables**:
 - Sprint review workflow
 - Retrospective workflow
+- Pull request workflow (Tech Lead AI + Human review)
+- GitHub branch protection configuration
 - Automated code review
 - CI/CD integration
 - Advanced monitoring and alerting
@@ -1222,7 +869,7 @@ volumes:
 
 | Component | Spec | Cost |
 |-----------|------|------|
-| EC2/ECS (Dashboard) | 2 vCPU, 4 GB | $30-50 |
+| EC2/ECS (WebApp) | 2 vCPU, 4 GB | $30-50 |
 | EC2/ECS (API) | 2 vCPU, 4 GB | $30-50 |
 | EC2/ECS (Orchestrator) | 2 vCPU, 4 GB | $30-50 |
 | RDS PostgreSQL | 4 vCPU, 16 GB | $80-120 |
@@ -1241,7 +888,7 @@ volumes:
 | Tech Lead | GPT-4o | 10K tokens/day | $50-80 |
 | Dev Agents (2x) | GPT-4o Mini | 20K tokens/day each | $20-40 |
 | QA Agent | GPT-4o | 10K tokens/day | $50-80 |
-| **Subtotal** | | | **$295-480** |
+| **Subtotal** | | **$295-480** |
 
 ### 12.3 Total Monthly Cost
 
@@ -1270,21 +917,28 @@ volumes:
 | **Velocity** | Measure of work completed by team per sprint |
 | **Backlog** | List of tasks/features to be implemented |
 | **Standup** | Daily meeting where team members report progress |
-| **RAG** | Retrieval-Augmented Generation for AI knowledge integration |
+| **Clean Architecture** | Layered architecture pattern with dependency inversion |
+| **SignalR** | ASP.NET library for real-time web functionality |
+| **Metronic 8** | Bootstrap-based admin theme for ASP.NET MVC |
 
 ### 13.2 References
 
 - [OpenCode Documentation](https://opencode.dev/docs)
 - [Agile Manifesto](https://agilemanifesto.org)
 - [Scrum Guide](https://scrumguides.org)
-- [Next.js Documentation](https://nextjs.org/docs)
+- [ASP.NET Core Documentation](https://docs.microsoft.com/aspnet/core)
+- [Entity Framework Core Documentation](https://docs.microsoft.com/ef/core)
+- [SignalR Documentation](https://docs.microsoft.com/aspnet/core/signalr)
+- [Metronic 8 Documentation](https://keenthemes.com/metronic)
 - [PostgreSQL Documentation](https://www.postgresql.org/docs)
+- [LLD.md](LLD.md) - Low-Level Design document with detailed implementation
 
 ### 13.3 Document Revision History
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
-| 1.0 | 2026-02-16 | System Architect | Initial HLD document |
+| 1.0 | 2026-02-16 | System Architect | Initial HLD document (Next.js stack) |
+| 2.0 | 2026-02-16 | System Architect | Updated to ASP.NET 8.0 stack with Clean Architecture, Metronic 8, SignalR, PR workflow, and simplified to high-level overview |
 
 ---
 
